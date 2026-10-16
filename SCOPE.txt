@@ -1,0 +1,103 @@
+ONYX VAULT V1 - Audit Scope
+============================
+Snapshot: 2026-10-16
+Projekt: ONYX VAULT V1 - Open Source Secure Messenger
+
+WAS ICH BRAUCHE
+---------------
+Full read-only Security-Audit:
+1. Executive Summary (Top-Findings, Risk High/Med/Low)
+2. Detailed Findings (file:line + snippet + impact + fix)
+3. Priorisierte Fix-Liste
+4. Threat-Model-Luecken
+
+PRIORITY FILES
+--------------
+Krypto / Nostr Flow:
+  website/hermes.js                                                       (BIP-340 Schnorr-Signatur, AES-GCM)
+  website/savecard.html + savecard.js                                     (QR-Generierung, AES-GCM, PDF-Erzeugung)
+  website/savetrigger.html + savetrigger.js                               (QR-Scan, AES-GCM Decrypt, Nostr-Publish)
+  website/killswitch.html + killswitch.js                                 (manueller Killswitch via Master-QR)
+  website/recovery.html + recovery.js                                     (PIN-Reset Flow)
+  website/register.html + register.js                                     (ONYX3 -> ONYX_MASTER QR-Transformation)
+  website/tor-gate.html + tor-gate.js                                     (Tor-Browser-Detection)
+
+App:
+  app/src/main/java/com/onyxvault/messenger/nostr/KillCommandListener.kt  (Empfaenger-Logik, Verify, Replay-Protection)
+  app/src/main/java/com/onyxvault/messenger/nostr/Bip340Verifier.kt       (Pure-Kotlin BIP-340 Verifier)
+  app/src/main/java/com/onyxvault/messenger/nostr/NostrEvent.kt           (NIP-01 Event + canonical hashing)
+  app/src/main/java/com/onyxvault/messenger/savecard/SaveCardGenerator.kt (lokale PDF-Generation)
+  app/src/main/java/com/onyxvault/messenger/crypto/                       (AES/Argon2/Keystore)
+  app/src/main/java/com/onyxvault/messenger/OnyxUrls.kt                   (Endpoint-Konstanten)
+  app/src/main/AndroidManifest.xml                                        (Permissions, exported Components)
+
+Server:
+  oracle/relay_publish_server.js                                          (Node.js Nostr-Fanout-Proxy, Signatur-Verify, Rate-Limit, Dedup)
+  oracle/nginx_combined.conf                                              (Reverse Proxy, Security Headers, strict CSP)
+  oracle/onyx-relay.service                                               (systemd Unit)
+  oracle/torrc                                                            (Tor Hidden Service Config)
+
+THREAT MODEL
+------------
+Angreifer-Faehigkeiten:
+  - Netzwerk-MITM (Tor schuetzt Metadaten)
+  - Kompromittierter Website-Server (sieht nur verschluesselte Blobs)
+  - Phone-Theft (Hardware-Keystore + Argon2 PIN)
+  - SaveCard-Besitz (QR1+QR2 reichen fuer Killswitch - by design)
+  - Boesartiger Nostr-Relay-Betreiber (sieht nur signed+encrypted Blobs)
+
+WAS BESONDERS GEPRUEFT WERDEN SOLL
+-----------------------------------
+A. Hardcoded Secrets / Supply-Chain
+   - trufflehog-aehnlicher Scan ueber alle Files
+   - SRI-Hashes fuer vendor/*.js vorhanden?
+   - package-lock Dependencies im oracle/
+
+B. Client-Side Krypto (website/hermes.js + savecard/savetrigger)
+   - AES-GCM: IV-Reuse? IV-Entropie ok?
+   - Key-Derivation (SHA-256 ohne Salt - bewusst wegen App-Kompat)
+   - BIP-340 Schnorr-Signatur Flow korrekt?
+   - Nonce/Timestamp im Kill-Event - Replay-Schutz?
+   - sessionStorage/localStorage Scope ok?
+   - innerHTML / eval / Function Constructor / atob/btoa - XSS?
+
+C. App-Side (Kotlin)
+   - KillCommandListener: Signatur-Verifikation vor Verarbeitung?
+   - canonical event.id check?
+   - target == myNostrPubkey enforce?
+   - Replay-Protection persistiert ueber Restart?
+   - Bip340Verifier mathematisch korrekt?
+   - Exported Components im AndroidManifest ohne Permission?
+   - WebView mit JavaScriptInterface?
+
+D. Server (oracle/relay_publish_server.js)
+   - Input-Validation fuer /relay-publish?
+   - Nostr-Event Signature-Verification?
+   - Kind-Whitelist?
+   - Rate-Limiting (echte Client-IP via X-Forwarded-For)?
+   - Event-Dedup persistent?
+   - CORS Allowlist strikt?
+   - Body-Size Cap?
+
+E. Operational / Privacy
+   - nginx CSP strict (ohne unsafe-inline/eval)?
+   - Permissions-Policy, X-Frame-Options, Referrer-Policy, COOP/CORP?
+   - Token-in-URL vs. Token-in-Hash (Browser-History/Logs/Referer-Leak)?
+   - Oracle Server haertung: Keine 0.0.0.0 bindings? SSH ueber Tor?
+
+WAS REDACTED IST (nicht als "fehlt" melden)
+--------------------------------------------
+  - .onion Hostnamen           -> [REDACTED-ONION]
+  - Oracle/Hetzner Public IPs  -> [REDACTED-*-IP]
+  - Oracle Cloud OCIDs         -> [REDACTED-OCID]
+  - Email, Name, Adresse       -> [REDACTED-*]
+  - VM-Hostnames               -> [REDACTED-VM-HOSTNAME]
+
+WAS BEWUSST NICHT DRIN IST
+---------------------------
+  - *.apk / *.aab   -> fuer MobSF Scan separat
+  - *.jks / *.keystore / signing keys
+  - oracle_key* (SSH private keys)
+  - .oci/config (OCI API credentials)
+  - .git/ history
+  - build/ / .gradle/ Caches

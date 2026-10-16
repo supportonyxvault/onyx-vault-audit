@@ -1,0 +1,17 @@
+[Unit]
+Description=ONYX VAULT Relay Publish Server (via Tor to .onion Nostr relays)
+After=network.target tor@default.service
+Requires=tor@default.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/onyx-relay
+ExecStart=/usr/bin/node /opt/onyx-relay/server.js
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/onyx-relay.log
+StandardError=append:/var/log/onyx-relay.log
+
+[Install]
+WantedBy=multi-user.target

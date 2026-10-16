@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SaveCard Generator — ONYX VAULT</title>
+<link rel="stylesheet" href="style.css">
+<script src="qrcode.min.js"></script>
+<script src="jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div class="container">
+  <header>
+    <img src="logo.png" alt="ONYX VAULT" class="logo-img">
+    <div class="logo"><span class="onyx">ONYX</span> <span class="vault">VAULT</span></div>
+    <div class="tagline">SaveCard — Notfall-Karte für Partner / Vertraute</div>
+  </header>
+
+  <nav>
+    <a href="index.html">Übersicht</a>
+    <a href="register.html">Registrierung</a>
+    <a href="recovery.html">Recovery</a>
+    <a href="killswitch.html">Kill Switch</a>
+    <a href="savecard.html" class="active">SaveCard</a>
+  </nav>
+
+  <div class="hero">
+    <h1>SaveCard Generator</h1>
+    <p>Erzeuge eine klappbare Scheckkarte zum Ausdrucken, die deine Vertrauensperson (Partner, Anwalt, Familie) im Notfall nutzen kann — ohne App, ohne Tor Browser, ohne technisches Wissen.</p>
+    <span class="badge">CLIENT-SIDE ONLY</span>
+    <span class="badge">OFFLINE-FÄHIG</span>
+    <span class="badge">NICHTS LAND BEI UNS</span>
+  </div>
+
+  <div class="card">
+    <div class="info">
+      <strong>So funktioniert's:</strong>
+      <ol style="margin:8px 0 0 20px;line-height:1.9">
+        <li>Du lädst deinen Master-QR hoch (vom Phone-Foto oder gespeichert)</li>
+        <li>Browser erzeugt lokal eine klappbare Karte (PDF) mit 2 QR-Codes</li>
+        <li>Du druckst sie aus und gibst sie deiner Vertrauensperson</li>
+        <li>Im Notfall: Person scannt beide QRs mit Phone-Kamera → Killswitch läuft</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1. Master-QR hochladen</h2>
+    <p>Das Bild bleibt lokal in deinem Browser. Nichts verlaesst diese Seite.</p>
+    <input type="file" id="masterQrFile" accept="image/*" style="margin:12px 0">
+    <div id="uploadStatus" style="margin:12px 0;font-weight:bold"></div>
+  </div>
+
+  <div class="card" id="modeCard" style="display:none">
+    <h2>2. Ziel-Netzwerk wählen</h2>
+    <p>Waehlen Sie, ob die SaveCard fuer das anonyme Tor-Netzwerk oder das schnellere GitHub-Netzwerk generiert werden soll.</p>
+    <button id="generateBtnTor" style="margin-top:16px;padding:14px 24px;font-size:16px;background:var(--teal);color:#000;border:0;border-radius:8px;cursor:pointer;font-weight:bold">🖨️ SaveCard TOR generieren</button>
+    <button id="generateBtnGithub" style="margin-top:16px;padding:14px 24px;font-size:16px;background:#ccc;color:#000;border:0;border-radius:8px;cursor:pointer;font-weight:bold">🖨️ SaveCard GITHUB generieren</button>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <h2>3. Deine SaveCard</h2>
+    <div id="genStatus" style="margin:12px 0"></div>
+    <canvas id="qr1Canvas" style="display:none"></canvas>
+    <canvas id="qr2Canvas" style="display:none"></canvas>
+    <div id="pdfReady" style="display:none">
+      <p style="color:var(--teal);font-weight:bold">✅ Karte fertig! Klicke zum Download:</p>
+      <button id="downloadBtn" style="padding:14px 24px;font-size:16px;background:#fff;color:#000;border:0;border-radius:8px;cursor:pointer;font-weight:bold">⬇️ SaveCard.pdf herunterladen</button>
+      <div style="margin-top:20px;padding:14px;background:rgba(239,68,68,0.1);border-left:3px solid #ef4444;border-radius:4px">
+        <strong style="color:#ef4444">⚠️ WICHTIG:</strong>
+        <ul style="margin:8px 0 0 20px;line-height:1.7">
+          <li>Drucke die Karte aus — <strong>nicht digital speichern</strong></li>
+          <li>Lege sie in einen Umschlag mit Anweisung "NUR IM NOTFALL ÖFFNEN"</li>
+          <li>Übergib sie an eine <strong>vertrauenswürdige Person</strong></li>
+          <li>Teste <strong>einmal mit dem Partner</strong>, dass alles verstanden ist</li>
+          <li>Jeder, der die Karte besitzt, kann den Killswitch auslösen</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="foot-logo"><span class="onyx">ONYX</span> <span class="vault">VAULT</span></div>
+    <div>
+      <a href="index.html" class="foot-link">Übersicht</a> ·
+      <a href="register.html" class="foot-link">Registrierung</a> ·
+      <a href="recovery.html" class="foot-link">Recovery</a> ·
+      <a href="killswitch.html" class="foot-link">Kill Switch</a> ·
+      <a href="savecard.html" class="foot-link">SaveCard</a> ·
+      <a href="impressum.html" class="foot-link">Impressum</a> ·
+      <a href="datenschutz.html" class="foot-link">Datenschutz</a>
+    </div>
+    <div class="copyright">© 2026 ONYX VAULT V1 · Open Source<br>SaveCard — Partnership-Erweiterung</div>
+  </footer>
+</div>
+
+<script>
+let masterPayload = null;
+
+function b64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function hex(buf){ return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+
+document.getElementById('masterQrFile').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('uploadStatus');
+  status.innerText = '⏳ QR wird dekodiert...';
+  try {
+    const img = await new Promise((res,rej)=>{
+      const i = new Image(); i.onload=()=>res(i); i.onerror=rej;
+      i.src = URL.createObjectURL(file);
+    });
+    const cv = document.createElement('canvas');
+    cv.width = img.width; cv.height = img.height;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(img,0,0);
+    const data = ctx.getImageData(0,0,cv.width,cv.height);
+    const code = jsQR(data.data, data.width, data.height);
+    if (!code) throw new Error('Kein QR-Code im Bild gefunden');
+    masterPayload = code.data;
+    status.innerHTML = '<span style="color:var(--teal)">✅ Master-QR erfolgreich dekodiert (' + code.data.length + ' Zeichen)</span>';
+    document.getElementById('modeCard').style.display = 'block';
+  } catch (err) {
+    status.innerHTML = '<span style="color:#ef4444">❌ ' + err.message + '</span>';
+  }
+};
+
+document.getElementById('generateBtnTor').onclick = async () => {
+  const btn = document.getElementById('generateBtnTor');
+  btn.disabled = true; btn.innerText = '⏳ Generiere TOR...';
+  const gen = document.getElementById('genStatus');
+  gen.innerText = 'Erzeuge Token + Verschlüsselung fuer TOR...';
+  document.getElementById('resultCard').style.display = 'block';
+
+  try {
+    // Token (16 Bytes = 32 hex)
+    const tokenBuf = crypto.getRandomValues(new Uint8Array(16));
+    const tokenHex = Array.from(tokenBuf).map(b=>b.toString(16).padStart(2,'0')).join('');
+
+    // Key = SHA256(token) — fallback mode (token-only)
+    const keyBuf = await crypto.subtle.digest('SHA-256', tokenBuf);
+    const key = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['encrypt']);
+
+    // IV (12 Bytes)
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+
+    // Encrypt
+    const payloadBuf = new TextEncoder().encode(masterPayload);
+    const cipherBuf = await crypto.subtle.encrypt({name:'AES-GCM',iv:iv}, key, payloadBuf);
+
+    // C = base64(iv || cipher+tag)
+    const combined = new Uint8Array(iv.length + cipherBuf.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(cipherBuf), iv.length);
+    const cB64 = b64(combined);
+
+    // QR1 = URL mit Token
+    const landingBase = window.location.origin + window.location.pathname.replace('savecard.html','') + 'savetrigger.html';
+    const qr1Text = landingBase + '?t_tor=' + tokenHex;
+
+    // QR2 = Cipher
+    const qr2Text = cB64;
+
+    // Render beide QRs auf Canvas
+    const qr1Cv = document.getElementById('qr1Canvas');
+    const qr2Cv = document.getElementById('qr2Canvas');
+    const qr1Gen = qrcode(0, 'M'); qr1Gen.addData(qr1Text); qr1Gen.make();
+    const qr2Gen = qrcode(0, 'M'); qr2Gen.addData(qr2Text); qr2Gen.make();
+
+    // Draw to canvas (scale to 400px)
+    function drawQR(qr, canvas, size) {
+      canvas.width = size; canvas.height = size;
+      const cx = canvas.getContext('2d');
+      const cells = qr.getModuleCount();
+      const cell = size / cells;
+      cx.fillStyle = '#fff'; cx.fillRect(0,0,size,size);
+      cx.fillStyle = '#000';
+      for (let r=0; r<cells; r++) for (let c=0; c<cells; c++)
+        if (qr.isDark(r,c)) cx.fillRect(Math.round(c*cell), Math.round(r*cell), Math.ceil(cell), Math.ceil(cell));
+    }
+    drawQR(qr1Gen, qr1Cv, 500);
+    drawQR(qr2Gen, qr2Cv, 500);
+
+    // Build PDF (jsPDF)
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:'landscape',unit:'mm',format:[180,120]});
+
+    // VORDERSEITE (linke Haelfte)
+    pdf.setFillColor(10,20,25); pdf.rect(0,0,90,120,'F');
+    pdf.setTextColor(94,234,212); pdf.setFontSize(14); pdf.setFont(undefined,'bold');
+    pdf.text('ONYX VAULT', 45, 12, {align:'center'});
+    pdf.setTextColor(255,255,255); pdf.setFontSize(9);
+    pdf.text('SaveCard · TOR', 45, 18, {align:'center'});
+    pdf.addImage(qr1Cv.toDataURL('image/png'), 'PNG', 15, 25, 60, 60);
+    pdf.setFontSize(7); pdf.setTextColor(200,200,200);
+    pdf.text('1. SCAN mit Phone-Kamera', 45, 93, {align:'center'});
+    pdf.text('Oeffnet die Trigger-Seite', 45, 98, {align:'center'});
+    pdf.setFontSize(6); pdf.setTextColor(239,68,68);
+    pdf.text('NUR IM NOTFALL VERWENDEN', 45, 110, {align:'center'});
+    pdf.text('Nach Scan: Karte umdrehen', 45, 114, {align:'center'});
+
+    // RUECKSEITE (rechte Haelfte)
+    pdf.setFillColor(10,20,25); pdf.rect(90,0,90,120,'F');
+    pdf.setTextColor(94,234,212); pdf.setFontSize(10); pdf.setFont(undefined,'bold');
+    pdf.text('RUECKSEITE', 135, 12, {align:'center'});
+    pdf.addImage(qr2Cv.toDataURL('image/png'), 'PNG', 105, 25, 60, 60);
+    pdf.setFontSize(7); pdf.setTextColor(200,200,200);
+    pdf.text('2. SCAN mit Trigger-Seite', 135, 93, {align:'center'});
+    pdf.text('Loesst Killswitch automatisch aus', 135, 98, {align:'center'});
+    pdf.setFontSize(5); pdf.setTextColor(150,150,150);
+    pdf.text('Token-ID: ' + tokenHex.substring(0,8) + '...', 135, 114, {align:'center'});
+
+    gen.innerHTML = '<span style="color:var(--teal)">✅ SaveCard TOR erzeugt!</span>';
+    document.getElementById('pdfReady').style.display = 'block';
+
+    document.getElementById('downloadBtn').onclick = () => {
+      pdf.save('ONYX_SaveCard_TOR_' + tokenHex.substring(0,8) + '.pdf');
+    };
+    btn.innerText = '🖨️ Neue Karte TOR generieren';
+    btn.disabled = false;
+  } catch (err) {
+    gen.innerHTML = '<span style="color:#ef4444">❌ ' + err.message + '</span>';
+    btn.disabled = false; btn.innerText = '🖨️ SaveCard TOR generieren';
+  }
+};
+
+document.getElementById('generateBtnGithub').onclick = async () => {
+  const btn = document.getElementById('generateBtnGithub');
+  btn.disabled = true; btn.innerText = '⏳ Generiere GITHUB...';
+  const gen = document.getElementById('genStatus');
+  gen.innerText = 'Erzeuge Token + Verschlüsselung fuer GITHUB...';
+  document.getElementById('resultCard').style.display = 'block';
+
+  try {
+    // Token (16 Bytes = 32 hex)
+    const tokenBuf = crypto.getRandomValues(new Uint8Array(16));
+    const tokenHex = Array.from(tokenBuf).map(b=>b.toString(16).padStart(2,'0')).join('');
+
+    // Key = SHA256(token) — fallback mode (token-only)
+    const keyBuf = await crypto.subtle.digest('SHA-256', tokenBuf);
+    const key = await crypto.subtle.importKey('raw', keyBuf, 'AES-GCM', false, ['encrypt']);
+
+    // IV (12 Bytes)
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+
+    // Encrypt
+    const payloadBuf = new TextEncoder().encode(masterPayload);
+    const cipherBuf = await crypto.subtle.encrypt({name:'AES-GCM',iv:iv}, key, payloadBuf);
+
+    // C = base64(iv || cipher+tag)
+    const combined = new Uint8Array(iv.length + cipherBuf.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(cipherBuf), iv.length);
+    const cB64 = b64(combined);
+
+    // QR1 = URL mit Token
+    const landingBase = window.location.origin + window.location.pathname.replace('savecard.html','') + 'savetrigger-github.html';
+    const qr1Text = landingBase + '?t_github=' + tokenHex;
+
+    // QR2 = Cipher
+    const qr2Text = cB64;
+
+    // Render beide QRs auf Canvas
+    const qr1Cv = document.getElementById('qr1Canvas');
+    const qr2Cv = document.getElementById('qr2Canvas');
+    const qr1Gen = qrcode(0, 'M'); qr1Gen.addData(qr1Text); qr1Gen.make();
+    const qr2Gen = qrcode(0, 'M'); qr2Gen.addData(qr2Text); qr2Gen.make();
+
+    // Draw to canvas (scale to 400px)
+    function drawQR(qr, canvas, size) {
+      canvas.width = size; canvas.height = size;
+      const cx = canvas.getContext('2d');
+      const cells = qr.getModuleCount();
+      const cell = size / cells;
+      cx.fillStyle = '#fff'; cx.fillRect(0,0,size,size);
+      cx.fillStyle = '#000';
+      for (let r=0; r<cells; r++) for (let c=0; c<cells; c++)
+        if (qr.isDark(r,c)) cx.fillRect(Math.round(c*cell), Math.round(r*cell), Math.ceil(cell), Math.ceil(cell));
+    }
+    drawQR(qr1Gen, qr1Cv, 500);
+    drawQR(qr2Gen, qr2Cv, 500);
+
+    // Build PDF (jsPDF)
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation:'landscape',unit:'mm',format:[180,120]});
+
+    // VORDERSEITE (linke Haelfte)
+    pdf.setFillColor(10,20,25); pdf.rect(0,0,90,120,'F');
+    pdf.setTextColor(94,234,212); pdf.setFontSize(14); pdf.setFont(undefined,'bold');
+    pdf.text('ONYX VAULT', 45, 12, {align:'center'});
+    pdf.setTextColor(255,255,255); pdf.setFontSize(9);
+    pdf.text('SaveCard · GITHUB', 45, 18, {align:'center'});
+    pdf.addImage(qr1Cv.toDataURL('image/png'), 'PNG', 15, 25, 60, 60);
+    pdf.setFontSize(7); pdf.setTextColor(200,200,200);
+    pdf.text('1. SCAN mit Phone-Kamera', 45, 93, {align:'center'});
+    pdf.text('Oeffnet die Trigger-Seite', 45, 98, {align:'center'});
+    pdf.setFontSize(6); pdf.setTextColor(239,68,68);
+    pdf.text('NUR IM NOTFALL VERWENDEN', 45, 110, {align:'center'});
+    pdf.text('Nach Scan: Karte umdrehen', 45, 114, {align:'center'});
+
+    // RUECKSEITE (rechte Haelfte)
+    pdf.setFillColor(10,20,25); pdf.rect(90,0,90,120,'F');
+    pdf.setTextColor(94,234,212); pdf.setFontSize(10); pdf.setFont(undefined,'bold');
+    pdf.text('RUECKSEITE', 135, 12, {align:'center'});
+    pdf.addImage(qr2Cv.toDataURL('image/png'), 'PNG', 105, 25, 60, 60);
+    pdf.setFontSize(7); pdf.setTextColor(200,200,200);
+    pdf.text('2. SCAN mit Trigger-Seite', 135, 93, {align:'center'});
+    pdf.text('Loesst Killswitch automatisch aus', 135, 98, {align:'center'});
+    pdf.setFontSize(5); pdf.setTextColor(150,150,150);
+    pdf.text('Token-ID: ' + tokenHex.substring(0,8) + '...', 135, 114, {align:'center'});
+
+    gen.innerHTML = '<span style="color:var(--teal)">✅ SaveCard GITHUB erzeugt!</span>';
+    document.getElementById('pdfReady').style.display = 'block';
+
+    document.getElementById('downloadBtn').onclick = () => {
+      pdf.save('ONYX_SaveCard_GITHUB_' + tokenHex.substring(0,8) + '.pdf');
+    };
+    btn.innerText = '🖨️ Neue Karte GITHUB generieren';
+    btn.disabled = false;
+  } catch (err) {
+    gen.innerHTML = '<span style="color:#ef4444">❌ ' + err.message + '</span>';
+    btn.disabled = false; btn.innerText = '🖨️ SaveCard GITHUB generieren';
+  }
+};
+</script>
+</body>
+</html>

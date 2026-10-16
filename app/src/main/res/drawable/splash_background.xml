@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Wir füllen den Hintergrund zuerst komplett weiß (passend zu deinem Logo) -->
+    <item android:drawable="@color/white" />
+
+    <!-- Jetzt legen wir das splash_logo drüber und lassen es den gesamten Schirm füllen -->
+    <item>
+        <bitmap
+            android:src="@drawable/splash_logo"
+            android:gravity="fill" />
+    </item>
+</layer-list>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Einfaches System-Theme ohne externe Abhängigkeiten -->
+    <style name="Theme.OnyxVault" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/light_background</item>
+        <item name="android:statusBarColor">@color/light_background</item>
+        <item name="android:navigationBarColor">@color/light_background</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <!-- Das Start-Theme (was im Manifest steht) -->
+    <style name="Theme.App.Starting" parent="Theme.OnyxVault">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+</resources>

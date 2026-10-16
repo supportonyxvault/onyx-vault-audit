@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registrierung — ONYX VAULT</title>
+<link rel="stylesheet" href="style.css">
+<script src="jsQR.min.js"></script>
+<script src="qrcode.min.js"></script>
+<script src="hermes.js"></script>
+</head>
+<body>
+<div class="container">
+  <header>
+    <img src="logo.png" alt="ONYX VAULT" class="logo-img">
+    <div class="logo"><span class="onyx">ONYX</span> <span class="vault">VAULT</span></div>
+    <div class="tagline">Registrierung — Master-QR erzeugen</div>
+  </header>
+
+  <nav>
+    <a href="index.html">Übersicht</a>
+    <a href="register.html" class="active">Registrierung</a>
+    <a href="recovery.html">Recovery</a>
+    <a href="killswitch.html">Kill Switch</a>
+  </nav>
+
+  <div class="hero">
+    <h1>App-Registrierungs-QR in Master-QR umwandeln</h1>
+    <p>Lade deinen App-Registrierungs-QR hier hoch (den du in der App unter „Mein App-Reg-Code" findest). Die Website entschluesselt ihn lokal in deinem Browser und erzeugt daraus deinen finalen Master-QR.</p>
+    <span class="badge">0 EUR</span>
+    <span class="badge">OHNE EMAIL</span>
+    <span class="badge">ZERO-SERVER</span>
+    <span class="badge">BROWSER-ONLY</span>
+  </div>
+
+  <div class="card">
+    <div class="info">
+      <strong>Ablauf in 4 Schritten:</strong>
+      <ol style="margin:8px 0 0 20px;line-height:1.9">
+        <li>App oeffnen → Einstellungen → <em>„Mein App-Reg-Code"</em> → QR speichern/teilen</li>
+        <li>Den gespeicherten QR hier unten reinziehen oder hochladen</li>
+        <li>Master-QR wird im Browser generiert</li>
+        <li>Master-QR herunterladen und 3-fach sichern</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>1. Registrierungs-QR hochladen</h2>
+    <p>Alle Verarbeitung laeuft lokal in deinem Browser. Nichts verlaesst deinen Browser.</p>
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="upload-icon">📱</div>
+      <div><strong>Hier klicken oder Reg-QR reinziehen</strong></div>
+      <div style="opacity:0.7;font-size:13px;margin-top:8px">PNG oder JPG — direkt aus deiner Galerie</div>
+      <input type="file" id="fileInput" accept="image/png,image/jpeg">
+    </div>
+    <div id="uploadStatus" style="margin-top:14px;text-align:center;font-family:monospace;font-size:13px"></div>
+  </div>
+
+  <!-- Master-QR Resultat -->
+  <div class="card" id="masterSection" style="display:none;border:1px solid var(--teal)">
+    <h2 style="color:var(--teal);border:none">✅ MASTER-QR BEREIT</h2>
+    <p><strong>App-ID:</strong> <code id="displayAppId"></code></p>
+    <p style="font-size:13px;opacity:0.85;margin:12px 0">
+      Dies ist dein finaler Master-QR. Lade ihn herunter und sichere ihn an mindestens 3 sicheren Orten.
+      <strong>Der App-Reg-QR allein reicht nicht für Recovery/Kill Switch!</strong>
+    </p>
+    <div style="text-align:center">
+      <canvas id="masterCanvas" style="background:white;padding:14px;border-radius:12px;margin:16px auto;display:block;max-width:95%;height:auto"></canvas>
+      <br>
+      <button class="btn" style="background:var(--teal);color:var(--bg);border:none;cursor:pointer;font-family:inherit" onclick="downloadMasterQR()">
+        📥 MASTER-QR SPEICHERN
+      </button>
+      <div id="dlStatus" style="margin-top:10px;font-family:monospace;font-size:12px"></div>
+    </div>
+    <div class="warn" style="margin-top:16px">
+      <strong>Backup-Strategie — mindestens 3-fach sichern:</strong><br>
+      1️⃣ Verschlüsselter Cloud-Speicher (siehe unten)<br>
+      2️⃣ Papier-Ausdruck im Safe<br>
+      3️⃣ Bei vertrauensvoller Person<br><br>
+      <strong>Ohne diesen Master-QR gibt es keinen Weg zurück, wenn du PIN vergisst und das Handy verlierst.</strong>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Was wird wo gespeichert?</h2>
+    <table>
+      <tr><td>Lokal auf deinem Handy</td><td>Alle Daten (Hardware-Container)</td></tr>
+      <tr><td>Private Master-Keys</td><td>Hardware-Keystore (unauslesbar)</td></tr>
+      <tr><td>Master-QR</td><td>DU — 3-fach gesichert</td></tr>
+      <tr><td>Nostr-Relays (öffentlich)</td><td>Nur signierte Events, kein Klartext</td></tr>
+      <tr><td>Fremde Server</td><td>Keine (gibt es nicht)</td></tr>
+      <tr><td>Google / Apple</td><td>Keine Daten</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Master-QR sichern — Externe Dienste</h2>
+    <p>Nach dem Download kannst du den Master-QR in verschlüsselten Cloud-Diensten speichern:</p>
+    <div class="payment-grid">
+      <a href="https://drive.google.com" target="_blank" rel="noopener" class="payment"><div class="payment-icon">☁️</div>Google Drive<small>drive.google.com</small></a>
+      <a href="https://www.dropbox.com" target="_blank" rel="noopener" class="payment"><div class="payment-icon">📦</div>Dropbox<small>dropbox.com</small></a>
+      <a href="https://www.icloud.com" target="_blank" rel="noopener" class="payment"><div class="payment-icon">📱</div>iCloud<small>icloud.com</small></a>
+      <a href="https://proton.me/mail" target="_blank" rel="noopener" class="payment"><div class="payment-icon">📧</div>Proton Mail<small>proton.me</small></a>
+      <a href="https://signal.org" target="_blank" rel="noopener" class="payment"><div class="payment-icon">💬</div>Signal<small>Chat an dich selbst</small></a>
+      <a href="https://onedrive.live.com" target="_blank" rel="noopener" class="payment"><div class="payment-icon">☁️</div>OneDrive<small>onedrive.com</small></a>
+    </div>
+  </div>
+
+  <footer>
+    <div class="foot-logo"><span class="onyx">ONYX</span> <span class="vault">VAULT</span></div>
+    <div>
+      <a href="index.html" class="foot-link">Übersicht</a> ·
+      <a href="register.html" class="foot-link">Registrierung</a> ·
+      <a href="recovery.html" class="foot-link">Recovery</a> ·
+      <a href="killswitch.html" class="foot-link">Kill Switch</a>
+    </div>
+    <div class="copyright">© 2026 ONYX VAULT v3.0 · Dezentral · Verschlüsselt · Privat</div>
+  </footer>
+</div>
+
+<script>
+'use strict';
+
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('dropZone');
+  const input = document.getElementById('fileInput');
+  ['dragenter','dragover'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add('drag-over'); }));
+  ['dragleave','drop'].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove('drag-over'); }));
+  zone.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) processRegQrFile(e.dataTransfer.files[0]); });
+  input.addEventListener('change', e => { if (e.target.files[0]) processRegQrFile(e.target.files[0]); });
+});
+
+async function processRegQrFile(file) {
+  OnyxUI.status('uploadStatus', '🔍 Lese QR aus Bild...');
+  try {
+    const img = await loadImage(file);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(data.data, data.width, data.height);
+    if (!code) {
+      OnyxUI.status('uploadStatus', '❌ Kein QR-Code im Bild gefunden', 'err');
+      return;
+    }
+    OnyxUI.status('uploadStatus', '⚙️ Wandle in Master-QR um...');
+    const result = await Hermes.transformRegToMaster(code.data, null);
+    renderResult(result);
+  } catch (e) {
+    OnyxUI.status('uploadStatus', '❌ ' + e.message, 'err');
+  }
+}
+
+function renderResult(result) {
+  if (!result.ok) {
+    OnyxUI.status('uploadStatus', '❌ ' + result.error, 'err');
+    return;
+  }
+  OnyxUI.status('uploadStatus', '✅ Master-QR erfolgreich erzeugt', 'ok');
+  document.getElementById('masterSection').style.display = 'block';
+  document.getElementById('displayAppId').innerText = result.appId;
+
+  // SYNCHRON Canvas-Rendering mit qrcode-generator Library (Kazuhiko Arase)
+  // Diese Lib hat KEIN async rendering - danach ist Canvas 100% fertig
+  try {
+    renderQRToCanvas(result.masterQrString, document.getElementById('masterCanvas'));
+    document.getElementById('dlStatus').innerText = 'QR fertig · ' + result.masterQrString.length + ' Zeichen';
+  } catch (e) {
+    document.getElementById('dlStatus').innerText = '❌ Rendering-Fehler: ' + e.message;
+    alert('QR-Rendering fehlgeschlagen: ' + e.message);
+    return;
+  }
+
+  document.getElementById('masterSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * Synchron Canvas-Rendering mit qrcode-generator.
+ * Garantiert dass canvas.toDataURL() danach eine echte PNG liefert.
+ */
+function renderQRToCanvas(text, canvas) {
+  // Automatisch die kleinste type-number waehlen die den Text aufnimmt
+  let qr = null;
+  for (let typeNum = 4; typeNum <= 40; typeNum++) {
+    try {
+      qr = qrcode(typeNum, 'M');
+      qr.addData(text);
+      qr.make();
+      break;
+    } catch (e) {
+      qr = null;
+      if (typeNum === 40) throw e;
+    }
+  }
+  if (!qr) throw new Error('QR konnte nicht erzeugt werden (text zu lang)');
+
+  const modules = qr.getModuleCount();
+  const cellSize = 6;         // 6 Pixel pro Modul = handliche Groesse
+  const margin = 4;           // 4 Module Rand (quiet zone)
+  const totalPx = (modules + margin * 2) * cellSize;
+
+  canvas.width = totalPx;
+  canvas.height = totalPx;
+  const ctx = canvas.getContext('2d');
+
+  // Weisser Hintergrund
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, totalPx, totalPx);
+
+  // Schwarze Module
+  ctx.fillStyle = '#000000';
+  for (let r = 0; r < modules; r++) {
+    for (let c = 0; c < modules; c++) {
+      if (qr.isDark(r, c)) {
+        ctx.fillRect((c + margin) * cellSize, (r + margin) * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+}
+
+/**
+ * Download: 3 Fallback-Strategien
+ * 1. Native App-Bruecke (In-App WebView): OnyxVault.saveMasterQR()
+ * 2. <a download> Click (normaler Browser)
+ * 3. window.open (Letzter Ausweg)
+ */
+function downloadMasterQR() {
+  const canvas = document.getElementById('masterCanvas');
+  if (!canvas || !canvas.width) {
+    document.getElementById('dlStatus').innerText = '❌ QR noch nicht gerendert';
+    return;
+  }
+
+  let dataUrl;
+  try {
+    dataUrl = canvas.toDataURL('image/png');
+  } catch (e) {
+    document.getElementById('dlStatus').innerText = '❌ Canvas-Export fehlgeschlagen';
+    return;
+  }
+
+  if (!dataUrl || dataUrl.length < 100) {
+    document.getElementById('dlStatus').innerText = '❌ Canvas leer';
+    return;
+  }
+
+  // Weg 1: Native App-Bruecke (In-App WebView)
+  if (window.OnyxVault && typeof window.OnyxVault.saveMasterQR === 'function') {
+    try {
+      const ok = window.OnyxVault.saveMasterQR(dataUrl, 'ONYX_VAULT_MASTER.png');
+      if (ok) {
+        document.getElementById('dlStatus').innerHTML = '<span style="color:var(--teal)">✅ In Galerie gespeichert</span>';
+        return;
+      }
+      document.getElementById('dlStatus').innerText = 'Native speichern fehlgeschlagen - versuche Browser-Download';
+    } catch (e) {
+      console.error('native save threw:', e);
+    }
+  }
+
+  // Weg 2: <a download> Click (normaler Browser)
+  try {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'ONYX_VAULT_MASTER.png';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 500);
+    document.getElementById('dlStatus').innerHTML = '<span style="color:var(--teal)">✅ Download gestartet (prüfe Downloads-Ordner)</span>';
+    return;
+  } catch (e) {
+    console.error('a.download failed:', e);
+  }
+
+  // Weg 3: window.open als Letzter Ausweg
+  try {
+    window.open(dataUrl, '_blank');
+    document.getElementById('dlStatus').innerText = 'Rechtsklick auf Bild → "Bild speichern unter..."';
+  } catch (e) {
+    document.getElementById('dlStatus').innerText = '❌ Alle Download-Wege fehlgeschlagen: ' + e.message;
+  }
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Bild konnte nicht geladen werden'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Datei lesen fehlgeschlagen'));
+    reader.readAsDataURL(file);
+  });
+}
+</script>
+</body>
+</html>
