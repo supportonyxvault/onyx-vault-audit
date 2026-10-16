@@ -1,5 +1,8 @@
 # ONYX VAULT V1 — Security Audit Package
 
+[![CodeQL](https://github.com/supportonyxvault/onyx-vault-audit/actions/workflows/codeql.yml/badge.svg)](https://github.com/supportonyxvault/onyx-vault-audit/actions/workflows/codeql.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 **Projekt:** ONYX VAULT V1 — Open Source Secure Messenger
 **Snapshot:** 2026-10-16
 **Zweck:** Externer Security-Audit (read-only, static analysis)
